@@ -76,3 +76,16 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Scrollbar Styling */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #232323 black; /* Assuming stone-900 as #1a202c */
+}
+
+::selection {
+  color: black;
+  background: white; /* Change background color as needed */
+}

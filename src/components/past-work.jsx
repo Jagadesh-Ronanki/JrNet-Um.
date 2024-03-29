@@ -24,13 +24,13 @@ const pastWorkData = [
 
 const PastWork = () => {
   return (
-    <div className="border-t-[0.1px] border-t-stone-900">
-      <Title title={"Past Work"} className={'border-t-[0.1px] border-stone-900'}/>
+    <div className="">
+      <Title title={"Past Work"} className={'border-t-[0.1px] border-stone-700'}/>
       <div className="gap-[1/-1]">
         <section className="">
           <div className="p-6 md:p-12">
             {pastWorkData.map((work, index) => (
-              <div key={index} className="rounded-xl flex justify-between items-center p-6 max-md:p-4 bg-darker-gray border border-dark-gray card mb-5 gap-4 bg-stone-950 border-stone-900 max-md:flex-col">
+              <div key={index} className="rounded-xl flex justify-between items-center p-6 max-md:p-4 bg-darker-gray border border-dark-gray card mb-5 gap-4 bg-stone-950 border-stone-700 max-md:flex-col">
                 <div className="flex items-center max-md:w-[95%] max-md:justify-between">
                   <Image
                     src={work.ProtocolLogo}
@@ -42,7 +42,7 @@ const PastWork = () => {
                   />
                   <span className="font-mono text-[16px]">{work.ProtocolName}</span>
                 </div>
-                <Button className="rounded-lg bg-stone-800 hover:bg-stone-900 max-md:w-full" variant="secondary">
+                <Button className="rounded-lg bg-stone-800 hover:bg-stone-700 max-md:w-full" variant="secondary">
                   <Link href={work.DownloadLink}>Download PDF</Link>
                 </Button>
               </div>

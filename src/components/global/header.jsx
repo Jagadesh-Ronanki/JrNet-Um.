@@ -17,7 +17,7 @@ const Header = () => {
   const checkActivePath = useActivePath()
 
   return (
-    <section className='sticky top-0 z-10 bg-black h-[79px] flex flex-row justify-between items-center pl-5 border-b-[0.1px] border-b-stone-900'>
+    <section className='sticky top-0 z-10 bg-black h-[79px] flex flex-row justify-between items-center pl-5 border-b-[0.1px] border-b-stone-700'>
       <button onClick={() => {setToggle(!toggle)}} className='relative'>
         <Image 
           alt="logo"
@@ -36,9 +36,9 @@ const Header = () => {
           draggable={false}
         />
       </button>
-      <nav className="max-md:hidden grid grid-cols-3 divide-x-[0.1px] divide-stone-900 w-auto text-center h-full">
+      <nav className="max-md:hidden grid grid-cols-3 divide-x-[0.1px] divide-stone-700 w-auto text-center h-full">
         {navigation.map((item, key) => (
-          <Link href={item.href} key={item.name} className={`content-center px-12 ${checkActivePath(item.href) ? 'active' : 'text-stone-400'} ${key == 0 ? 'border-l-[0.1px] border-l-stone-900' : ''}`}>
+          <Link href={item.href} key={item.name} className={`content-center px-12 ${checkActivePath(item.href) ? 'active' : 'text-stone-400'} ${key == 0 ? 'border-l-[0.1px] border-l-stone-700' : ''}`}>
               {item.name}
           </Link>
         ))}
@@ -64,7 +64,7 @@ const Header = () => {
       {/* Mobile navigation */}
       {isOpen && (
         <div className="absolute top-full right-0 left-0 md:hidden pt-[1px]">
-          <div className="backdrop-blur-lg bg-black space-y-1 divide-y-[0.1px] divide-stone-900 border-b-[0.1px] border-b-stone-900">
+          <div className="backdrop-blur-lg bg-black space-y-1 divide-y-[0.1px] divide-stone-700 border-b-[0.1px] border-b-stone-700">
             {navigation.map((item, key) => (
               <Link href={item.href} onClick={() => {setIsOpen(false)}} key={item.name} className={`block text-center rounded-md text-base p-5 ${checkActivePath(item.href) ? 'active' : 'text-stone-400'}`}>
                   {item.name}

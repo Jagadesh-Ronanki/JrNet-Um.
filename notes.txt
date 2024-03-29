@@ -1,0 +1,104 @@
+      <div className="gap-4 md:text-lg xl:grid xl:grid-cols-[1fr_48rem_1fr]">
+        <aside className="max-h-[calc(100vh - 9rem)] mt-10 pb-12 max-w-[235px] left-[3rem] sticky top-32 mb-24 h-fit max-h-screen overflow-y-hidden hover:overflow-y-auto max-xl:hidden opacity-30 font-normal text-md">
+          <nav>
+            <ol className="space-y-2 font-sans">
+              <li className="break-words ml-3 text-[0.9rem] leading-tight">
+                <a href="#what-is-transient-storage-eip-1153-7784637fb90d">
+                  What is Transient Storage (EIP-1153)?
+                </a>
+              </li>
+              <li className="break-words ml-3 text-[0.9rem] leading-tight">
+                <a href="#why-do-we-need-eip-1153-8581a655ad89">
+                  Why do we need EIP-1153?
+                </a>
+              </li>
+              <li className="break-words ml-3 text-[0.9rem] leading-tight">
+                <a href="#use-cases-4855dffb44e1">Use Cases</a>
+              </li>
+              <li className="break-words ml-3 text-[0.9rem] leading-tight">
+                <a href="#key-security-considerations-benefits-and-drawbacks-of-eip-1153-5541830cca67">
+                  Key Security Considerations, Benefits, and Drawbacks of
+                  EIP-1153
+                </a>
+              </li>
+              <li className="break-words ml-3 text-[0.9rem] leading-tight">
+                <a href="#latest-news-about-transient-storage-0335c6e5c2e6">
+                  Latest News about Transient Storage
+                </a>
+              </li>
+              <li className="break-words ml-3 text-[0.9rem] leading-tight">
+                <a href="#conclusion-and-outlook-b496d2f6a718">
+                  Conclusion and Outlook
+                </a>
+              </li>
+            </ol>
+          </nav>
+        </aside>
+        <div className="p-12 xl:border-l-[0.1px] xl:border-r-[0.1px] border-stone-700 mx-auto max-w-[75ch] font-light text-left">
+          {/* headings */}
+          <h4
+            id="what-is-transient-storage-eip-1153-7784637fb90d"
+            className="mb-5 break-words text-xl font-semibold before:-mt-40 before:block before:h-40"
+          >
+            What is Transient Storage (EIP-1153)?
+          </h4>
+          {/* Body */}
+          <p className="mb-6 font-light text-[#d8d8d8]">
+            Transient Storage introduces another data location besides{" "}
+            <Link
+              href="https://betterprogramming.pub/solidity-tutorial-all-about-data-locations-dabd33212471"
+              className="[overflow-wrap:anywhere] border-b-[1px] cursor-pointer border-[#8f8f8f] hover:border-white hover:bg-[#8f8f8f] hover:font-[10px] hover:text-white transition-colors duration-150 delay-150"
+            >
+              memory, storage, and calldata
+            </Link>{" "}
+            (return-data and code). The new data location behaves as a key-value
+            store similar to storage with the main difference being that data in
+            transient storage is not permanent. Thus, the transient storage is a
+            temporary storage mechanism intended for Ethereum-based blockchain
+            networks.
+          </p>
+          {/* Figure */}
+          <figure className="mb-6">
+            <Image
+              src={"/um.svg"}
+              height={100}
+              width={100}
+              alt={"blog-image"}
+              className="mx-auto w-full h-auto max-h-[90vh] transition-transform rounded-lg border border-[#4a4a4a] max-w-full duration-500 hover:scale-[1.02] hover:cursor-pointer hover:duration-200"
+            />
+          </figure>
+          {/* Bullet points */}
+          <ul className="list-disc outer-reset-[list-counter] mb-6">
+            <li className="mb-1 ml-5 list-outside pl-2">
+              <strong>Reentrancy locks:</strong>
+            </li>
+          </ul>
+
+          {/* credits */}
+          <p className="mb-6 font-light">
+            <em>
+              Credits:{" "}
+              <Link
+                href="https://hackmd.io/@-_WYFKbvSmip5m7MNB4b8A/SJFH66Eca"
+                className="[overflow-wrap:anywhere] border-b-[1px] cursor-pointer border-[#8f8f8f] hover:border-white hover:bg-[#8f8f8f] hover:font-[10px] hover:text-white transition-colors duration-150 delay-150"
+              >
+                Hackmd
+              </Link>
+              ,{" "}
+              <Link
+                href="https://eips.ethereum.org/EIPS/eip-1153"
+                className="[overflow-wrap:anywhere] border-b-[1px] cursor-pointer border-[#8f8f8f] hover:border-white hover:bg-[#8f8f8f] hover:font-[10px] hover:text-white transition-colors duration-150 delay-150"
+              >
+                EIP-1153
+              </Link>
+              ,{" "}
+              <Link
+                href="https://soliditylang.org/blog/2024/01/26/solidity-0.8.24-release-announcement"
+                className="[overflow-wrap:anywhere] border-b-[1px] cursor-pointer border-[#8f8f8f] hover:border-white hover:bg-[#8f8f8f] hover:font-[10px] hover:text-white transition-colors duration-150 delay-150"
+              >
+                Solidity 0.8.24 Release
+              </Link>
+            </em>
+          </p>
+        </div>
+      </div>

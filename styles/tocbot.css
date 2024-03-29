@@ -1,0 +1,45 @@
+.js-toc {
+  max-height: calc(100vh - 9rem);
+  margin-top: 2.5rem;
+  padding-bottom: 3rem;
+  
+  position: sticky;
+  top: 1rem;
+  margin-bottom: 6rem;
+  height: fit-content;
+  max-height: -webkit-fill-available; /* For Safari */
+  overflow-y: hidden;
+  color: rgba(205, 204, 204, 0.45);
+  transition: color 0.3s ease-in-out;
+  font-size: 1rem;
+  align-items: center;
+}
+
+.js-toc:hover {
+  overflow-y: auto;
+  color: rgba(195, 192, 192, 0.7);
+}
+
+.js-toc ol {
+  padding-left: 0;
+  list-style-type: none;
+  margin: 0;
+}
+
+.js-toc li {
+  margin-left: 1rem;
+  font-size: 0.8rem;
+  line-height: tight;
+  word-break: break-word;
+}
+
+.js-toc li a {
+  color: inherit; /* Ensures links use the current color */
+  text-decoration: none; /* Removes underline */
+  transition: color 0.3s, font-weight 0.3s;
+}
+
+.js-toc li a:hover {
+  color: white;
+  font-weight: normal;
+}

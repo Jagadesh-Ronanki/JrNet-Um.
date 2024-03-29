@@ -1,3 +1,4 @@
+/* MDX files */
 import { defineDocumentType, makeSource } from "contentlayer/source-files"
 import rehypeAutolinkHeadings from "rehype-autolink-headings"
 import rehypePrettyCode from "rehype-pretty-code"
@@ -15,54 +16,6 @@ const computedFields = {
     resolve: (doc) => doc._raw.flattenedPath.split("/").slice(1).join("/"),
   },
 }
-
-export const Doc = defineDocumentType(() => ({
-  name: "Doc",
-  filePathPattern: `docs/**/*.mdx`,
-  contentType: "mdx",
-  fields: {
-    title: {
-      type: "string",
-      required: true,
-    },
-    description: {
-      type: "string",
-    },
-    published: {
-      type: "boolean",
-      default: true,
-    },
-  },
-  computedFields,
-}))
-
-// export const Guide = defineDocumentType(() => ({
-//   name: "Guide",
-//   filePathPattern: `guides/**/*.mdx`,
-//   contentType: "mdx",
-//   fields: {
-//     title: {
-//       type: "string",
-//       required: true,
-//     },
-//     description: {
-//       type: "string",
-//     },
-//     date: {
-//       type: "date",
-//       required: true,
-//     },
-//     published: {
-//       type: "boolean",
-//       default: true,
-//     },
-//     featured: {
-//       type: "boolean",
-//       default: false,
-//     },
-//   },
-//   computedFields,
-// }))
 
 export const Post = defineDocumentType(() => ({
   name: "Post",
@@ -86,7 +39,7 @@ export const Post = defineDocumentType(() => ({
     },
     image: {
       type: "string",
-      required: true,
+      required: false,
     },
     authors: {
       // Reference types are not embedded.
@@ -125,25 +78,9 @@ export const Author = defineDocumentType(() => ({
   computedFields,
 }))
 
-// export const Page = defineDocumentType(() => ({
-//   name: "Page",
-//   filePathPattern: `pages/**/*.mdx`,
-//   contentType: "mdx",
-//   fields: {
-//     title: {
-//       type: "string",
-//       required: true,
-//     },
-//     description: {
-//       type: "string",
-//     },
-//   },
-//   computedFields,
-// }))
-
 export default makeSource({
   contentDirPath: "./content",
-  documentTypes: [{/*Page*/}, Doc, {/*Guide*/}, Post, Author],
+  documentTypes: [Post, Author],
   mdx: {
     remarkPlugins: [remarkGfm],
     rehypePlugins: [
@@ -179,3 +116,30 @@ export default makeSource({
     ],
   },
 })
+
+/* Notion Integration */
+/* 
+import { makeSource, defineDatabase } from 'contentlayer-source-notion'
+import * as notion from '@notionhq/client'
+ 
+const client = new notion.Client({ auth: process.env.NEXT_NOTION_SECRET })
+ 
+export const Post = defineDatabase(() => ({
+  name: 'Post',
+  databaseId: process.env.NEXT_NOTION_POST_DATABASE_ID,
+  query: {
+    filter: {
+      property: 'status',
+      status: { equals: 'Published' },
+    },
+  },
+  properties: {
+    date: { name: 'Created time' },
+  },
+  computedFields: {
+    url: { type: 'string', resolve: (post) => `/posts/${post._id}` },
+  },
+}))
+ 
+export default makeSource({ client, databaseTypes: [Post] })
+ */
