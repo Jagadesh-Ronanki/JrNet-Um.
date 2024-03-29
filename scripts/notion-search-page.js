@@ -2,7 +2,7 @@ const { Client } = require('@notionhq/client');
 
 /* Source: https://developers.notion.com/reference/post-search */
 
-const notion = new Client({ auth: "secret_lgHbRVOE2NcoisLwLLNnZFAjtpNQHoKWFdQgljUgbkU"});
+const notion = new Client({ auth: process.env.NOTION_SECRET});
 
 (async () => {
   const response = await notion.search({
