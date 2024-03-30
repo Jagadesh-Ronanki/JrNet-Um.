@@ -21,7 +21,7 @@ const inter = Inter({ subsets: ["latin"] });
 //   authors: [
 //     {
 //       name: "JrNet",
-//       url: "http://localhost:3000",
+//       url: "https://umspaces.vercel.app",
 //     },
 //   ],
 //   creator: "Jagadesh Ronanki",

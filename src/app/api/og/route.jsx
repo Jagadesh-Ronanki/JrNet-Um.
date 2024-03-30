@@ -65,7 +65,7 @@ export async function GET(req) {
               tw="flex text-xl"
               style={{ fontFamily: "Inter", fontWeight: "normal" }}
             >
-              localhost:3000
+              umspaces.vercel.app
             </div>
             <div
               tw="flex items-center text-xl"
