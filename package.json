@@ -9,7 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@effect-ts/react": "^0.3.1",
     "@kodaps/notion-parse": "^0.0.14",
     "@radix-ui/react-slot": "^1.0.2",
     "@vercel/analytics": "^1.2.2",
