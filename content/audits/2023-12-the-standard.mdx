@@ -1,0 +1,267 @@
+---
+title: The Standard
+logo: https://camo.githubusercontent.com/e0a7fedc385062345d4ad641970860edaadae257a007b386986e68184ee24797/68747470733a2f2f7265732e636c6f7564696e6172792e636f6d2f64726f716f7a376c672f696d6167652f75706c6f61642f715f39302f6470725f322e302f635f66696c6c2c675f6175746f2c685f3332302c775f3332302f665f6175746f2f76312f636f6d70616e792f6f63667732377177636a7a7a643766746f6538623f5f613d424154415556414130
+date: "2023-12-27"
+published: true
+HMs: 2
+earnings: 15.80
+authors:
+  - JrNet
+---
+
+
+The code under review can be found in [2023-12-the-standard](https://github.com/Cyfrin/2023-12-the-standard).
+
+---
+
+# H-01. Unbounded Growth in Pending Stakes Array allows to grief and break liquidationPool operations            
+
+### Relevant GitHub Links
+	
+https://github.com/Cyfrin/2023-12-the-standard/blob/91132936cb09ef9bf82f38ab1106346e2ad60f91/contracts/LiquidationPool.sol#L136
+
+https://github.com/Cyfrin/2023-12-the-standard/blob/91132936cb09ef9bf82f38ab1106346e2ad60f91/contracts/LiquidationPool.sol#L150
+
+https://github.com/Cyfrin/2023-12-the-standard/blob/91132936cb09ef9bf82f38ab1106346e2ad60f91/contracts/LiquidationPool.sol#L150
+
+### Summary
+The `increasePosition` function in LiquidationPool.sol allows any stake amount, leading to the creation of new stakes in the `pendingStakes[]` array. These pending stakes undergo processing the day after staking through `consolidatePendingStakes()`. The function is triggered on every increasePosition, decreasePosition, and distributeAssets call. Exploiting this, a malicious actor can repeatedly transfer minuscule amounts (1 wei) of EUROs / TST tokens, causing an infinite increase in the length of the pending stakes array. This manipulation results in excessive gas consumption or reverts during subsequent interactions.
+
+```javascript
+    // File: LiquidityPool.sol
+    function increasePosition(uint256 _tstVal, uint256 _eurosVal) external {
+        ...
+        if (_tstVal > 0) IERC20(TST).safeTransferFrom(msg.sender, address(this), _tstVal);
+        if (_eurosVal > 0) IERC20(EUROs).safeTransferFrom(msg.sender, address(this), _eurosVal);
+@>      // @audit allowing any amt of stakes result in grief other users - cost to perform attack is gas fee and very few asset tokens
+        pendingStakes.push(PendingStake(msg.sender, block.timestamp, _tstVal, _eurosVal));
+        ...
+    }
+```
+
+### Vulnerability Details
+1. Attacker mints 1 EUROs token from Vault.
+2. Calls increasePosition with 1 wei, repeating the process multiple times (e.g., 1^18 times).
+3. The `consolidatePendingStakes` function, which is gas-intensive, processes the pending stakes.
+   - Iterates through pending stakes.
+   - Deletes processed pending stakes by left-shifting elements in the array.
+4. Interactions with decreasePosition, distributeAssets, or increasePosition on the following day lead to reverts or significant gas consumption.
+
+### Impact
+The vulnerability results in failed or excessively gas-consuming interactions, affecting the liquidity pool.
+
+### Tools Used
+Manual Review
+
+### Recommendations
+Implement checks to ensure that stake amounts are within reasonable limits, preventing abuse with extremely small values.
+
+---
+
+# M-01. Risk of reward loss due to deletions in the holders array, impacting liquidity stake-holders            
+
+### Relevant GitHub Links
+	
+https://github.com/Cyfrin/2023-12-the-standard/blob/91132936cb09ef9bf82f38ab1106346e2ad60f91/contracts/LiquidationPool.sol#L161
+
+https://github.com/Cyfrin/2023-12-the-standard/blob/91132936cb09ef9bf82f38ab1106346e2ad60f91/contracts/LiquidationPool.sol#L92
+
+https://github.com/Cyfrin/2023-12-the-standard/blob/91132936cb09ef9bf82f38ab1106346e2ad60f91/contracts/LiquidationPool.sol#L105-L110
+
+### Summary
+In the LiquidityPool contract, when a liquidity holder withdraws their entire staked amount from the pool, the corresponding position is deleted from the positions mapping, and the holder is removed from the holders array. However, a flaw in the logic exists: positions that are still pendingStake processing after this withdrawal action (entire stake removal) are not considered for reward distribution. This oversight results in potential loss of rewards for affected positions.
+
+`empty()`: Checks for stake in the existing positions of the caller.
+```javascript
+    // File: LiquidationPool.sol
+   function empty(Position memory _position) private pure returns (bool) {
+      return _position.TST == 0 && _position.EUROs == 0;
+   }
+```
+
+`deleteHolder()`: deletes the holder from holders array. 
+```javascript
+   // File: LiquidityPool.sol
+   function deleteHolder(address _holder) private {
+      ...
+      holders.pop();
+   }
+```
+
+`consolidatePendingStakes()`: Never checks for holder existence in holders array. Which is essential to spread and claim reward tokens.
+```javascript
+   // File: LiquidityPool.sol
+    function consolidatePendingStakes() private {
+        ...
+        positions[_stake.holder].holder = _stake.holder;
+        positions[_stake.holder].TST += _stake.TST;
+        positions[_stake.holder].EUROs += _stake.EUROs;
+        deletePendingStake(uint256(i));
+        ...
+    }
+```
+
+### Vulnerability Details
+1. Scenario:
+    * User 1 opens a new position with 10 TST.
+    * The position is processed the next day.
+2. Scenario:
+    * On the second day, User 1 opens several new positions by calling increasePosition, and they are sent to pendingStakes.
+    * Assuming User 1 took another position with 10 TST.
+    * User 1 wants to decrease the position by the amount of 10 TST (available to redeem as processed from pending to positions).
+3. Outcome:
+    * User 1 assumes that they held a position at LP and earned rewards.
+    * But on the decrease position call, User 1 deleted their address from `holders`.
+    * To receive and claim rewards, the code holds the logic to iterate through the `holders` array.
+```javascript
+    // File: LiquidityPool.sol
+    function distributeFees(uint256 _amount) external onlyManager {
+        ...
+            /*
+                Iterates through the list of holders and calculates the portion of fees each holder
+                is entitled to based on their TST holdings. The result is added to their EUROs balance
+                in their respective positions.
+            */
+            for (uint256 i = 0; i < holders.length; i++) {
+                // @audit User-1 never existed
+                address _holder = holders[i];
+                positions[_holder].EUROs += _amount * positions[_holder].TST / tstTotal;
+            }
+        ...
+    }
+```
+4. Result:
+    * User 1 never acquired rewards for this holding.
+
+<details>
+<summary>Hardhat Test PoC</summary>
+
+Add the below test code to the liquidation pool test
+
+```javascript
+// File: test/liquidationPool.js
+ describe('bad position', async () => {
+    it('delete holder with existing position', async () => {
+      const tstStake = ethers.utils.parseEther('20');
+      await TST.mint(user1.address, tstStake);
+      await TST.connect(user1).approve(LiquidationPool.address, tstStake);
+
+      const slice = ethers.utils.parseEther('10');
+
+      /*
+      *******************************************************************
+      *        User 1 opens a position in LP with 10 TST                *
+      * *****************************************************************
+      */
+      await LiquidationPool.connect(user1).increasePosition(slice, 0);
+
+      // user 1 stakes 10 EUROs
+      let { _position } = await LiquidationPool.position(user1.address);
+      expect(_position.TST).to.equal(slice);
+
+      // pass a day
+      await fastForward(DAY);
+
+      /*
+      *******************************************************************
+      *      User 1 increase position in LP with another 10 TST         *
+      * *****************************************************************
+      */
+      await LiquidationPool.connect(user1).increasePosition(slice, 0);
+
+      /*
+      ******************************************************************************
+      *    User 1 decrease position with another 10 TST                            *
+      *    As the position is empty it removes user 1 from holders array           *
+      * ****************************************************************************
+      */
+      // decrease position remove all stake
+      await LiquidationPool.connect(user1).decreasePosition(slice, 0);
+
+      // pass a day
+      await fastForward(DAY);
+
+      /*
+      *******************************************************************
+      *       User 2 opens position with 100_000 TST                    *
+      *       Rewards are to be distributed by this call                *
+      * *****************************************************************
+      */
+
+      // assigning fees to LPManager
+      const fees = ethers.utils.parseEther('100');
+      await EUROs.mint(LiquidationPoolManager.address, fees);
+
+      tstStakeValue = ethers.utils.parseEther('100000');
+      await TST.mint(user2.address, tstStakeValue);
+      await TST.connect(user2).approve(LiquidationPool.address, tstStakeValue);
+      await LiquidationPool.connect(user2).increasePosition(tstStakeValue, 0);
+
+      /*
+      *******************************************************************************
+      *       Does staker receive rewards? - NO                                     *
+      *       Until user 1 decides to increase position he receives no rewards      *
+      * *****************************************************************************
+      */
+      ({ _position } = await LiquidationPool.position(user1.address));
+      // staked 10 TST tokens but received 0 EUROs as rewards
+      expect(_position.EUROs).to.equal(ethers.utils.parseEther('0'));
+      console.log(_position);
+
+      /*
+      *******************************************************************
+      *                Are Staked tokens safe? - YES                    *
+      * *****************************************************************
+      */
+      await LiquidationPool.connect(user1).decreasePosition(slice, 0);
+      ({ _position } = await LiquidationPool.position(user1.address));
+      expect(_position.TST).to.equal(0);
+      expect(await TST.balanceOf(user1.address)).to.equal(tstStake);
+   });
+});
+```
+
+Sample Result:
+```bash
+  LiquidationPool
+    bad position
+[
+  '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+  BigNumber { value: "10000000000000000000" },
+  BigNumber { value: "0" },
+  holder: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+  TST: BigNumber { value: "10000000000000000000" },
+  EUROs: BigNumber { value: "0" } @> // no rewards earned on stake
+]
+      ✔ delete holder with existing position (555ms)
+```
+</details>
+
+### Impact
+This is an edge case where a stake-holder assumes to be receiving rewards on their stake but doesn't. Stake-holders fail to receive rewards until they call the increasePosition function which is as rare action as the cause to vulnerability.
+
+### Tools Used
+Hardhat
+
+### Recommendations
+If holder holds pending stakes return `false`.
+
+```diff
+   // File: LiquidationPool.sol
+   function deleteHolder(address _holder) private {
++     // Check if there are pending stakes for the holder
++     (uint256 _pendingTST, uint256 _pendingEUROs) = holderPendingStakes(_holder);
++     if (_pendingTST > 0 || _pendingEUROs > 0) {
++       // If there are pending stakes, do not delete the holder
++       return;
++     }
++
+      for (uint256 i = 0; i < holders.length; i++) {
+         if (holders[i] == _holder) {
+            holders[i] = holders[holders.length - 1];
+            holders.pop();
+         }
+      }
+   }
+
+```

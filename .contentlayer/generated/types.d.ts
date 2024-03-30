@@ -8,6 +8,24 @@ export { isType } from 'contentlayer/client'
 export type { Markdown, MDX, ImageFieldData, IsoDateTimeString }
 
 /** Document types */
+export type Audit = {
+  /** File path relative to `contentDirPath` */
+  _id: string
+  _raw: Local.RawDocumentData
+  type: 'Audit'
+  title: string
+  date: IsoDateTimeString
+  published: boolean
+  logo?: string | undefined
+  HMs?: number | undefined
+  earnings?: number | undefined
+  authors: string[]
+  /** MDX file body */
+  body: MDX
+  slug: string
+  slugAsParams: string
+}
+
 export type Author = {
   /** File path relative to `contentDirPath` */
   _id: string
@@ -32,8 +50,19 @@ export type Post = {
   description?: string | undefined
   date: IsoDateTimeString
   published: boolean
-  image: string
+  image?: string | undefined
   authors: string[]
+  /** MDX file body */
+  body: MDX
+  slug: string
+  slugAsParams: string
+}
+
+export type Static = {
+  /** File path relative to `contentDirPath` */
+  _id: string
+  _raw: Local.RawDocumentData
+  type: 'Static'
   /** MDX file body */
   body: MDX
   slug: string
@@ -48,8 +77,8 @@ export type Post = {
 export type AllTypes = DocumentTypes | NestedTypes
 export type AllTypeNames = DocumentTypeNames | NestedTypeNames
 
-export type DocumentTypes = Author | Post
-export type DocumentTypeNames = 'Author' | 'Post'
+export type DocumentTypes = Audit | Author | Post | Static
+export type DocumentTypeNames = 'Audit' | 'Author' | 'Post' | 'Static'
 
 export type NestedTypes = never
 export type NestedTypeNames = never
@@ -58,6 +87,8 @@ export type DataExports = {
   allDocuments: DocumentTypes[]
   allPosts: Post[]
   allAuthors: Author[]
+  allStatics: Static[]
+  allAudits: Audit[]
 }
 
 
@@ -77,8 +108,10 @@ declare global {
 }
 
 export type DocumentTypeMap = {
+  Audit: Audit
   Author: Author
   Post: Post
+  Static: Static
 }
 
 export type NestedTypeMap = {

@@ -10,7 +10,7 @@ const components = {
   h1: ({ className, ...props }) => (
     <h1
       className={cn(
-        "mb-5 break-words text-xl font-semibold before:-mt-40 before:block before:h-40",
+        "mb-5 break-words text-xl font-semibold before:-mt-40 pb-2 before:block before:h-40",
         className
       )}
       {...props}
@@ -28,7 +28,7 @@ const components = {
   h3: ({ className, ...props }) => (
     <h3
       className={cn(
-        "mt-8 scroll-m-20 text-2xl font-semibold tracking-tight",
+        "mb-5 break-words text-md font-semibold before:-mt-40 before:block before:h-40",
         className
       )}
       {...props}
@@ -80,7 +80,7 @@ const components = {
     <ol className={cn("my-6 ml-6 list-decimal", className)} {...props} />
   ),
   li: ({ className, ...props }) => (
-    <li className={cn("mb-1 ml-5 list-outside pl-2", className)} {...props} />
+    <li className={cn("mb-1 ml-5 list-outside md:font-light pl-2 text-[#d8d8d8]", className)} {...props} />
   ),
   blockquote: ({ className, ...props }) => (
     <blockquote
@@ -114,7 +114,7 @@ const components = {
   th: ({ className, ...props }) => (
     <th
       className={cn(
-        "border px-4 py-2 text-left font-bold bg-muted [&[align=center]]:text-center [&[align=right]]:text-right",
+        "border px-4 py-2 text-left font-bold bg-muted [&[align=center]]:text-center [&[align=right]]:text-right bg-white/10",
         className
       )}
       {...props}

@@ -78,9 +78,56 @@ export const Author = defineDocumentType(() => ({
   computedFields,
 }))
 
+export const StaticPages = defineDocumentType(() => ({
+  name: "Static",
+  filePathPattern: `static/**/*.mdx`,
+  contentType: "mdx",
+  fields: {
+  },
+  computedFields,
+}))
+
+export const AuditReport = defineDocumentType(() => ({
+  name: "Audit",
+  filePathPattern: `audits/**/*.mdx`,
+  contentType: "mdx",
+  fields: {
+    title: {
+      type: "string",
+      required: true,
+    },
+    date: {
+      type: "date",
+      required: true,
+    },
+    published: {
+      type: "boolean",
+      default: true,
+    },
+    logo: {
+      type: "string",
+      required: false,
+    },
+    HMs: {
+      type: "number",
+      required: false,
+    },
+    earnings: {
+      type: "number",
+      required: false,
+    },
+    authors: {
+      type: "list",
+      of: { type: "string" },
+      required: true,
+    },
+  },
+  computedFields,
+}))
+
 export default makeSource({
   contentDirPath: "./content",
-  documentTypes: [Post, Author],
+  documentTypes: [Post, Author, StaticPages, AuditReport],
   mdx: {
     remarkPlugins: [remarkGfm],
     rehypePlugins: [

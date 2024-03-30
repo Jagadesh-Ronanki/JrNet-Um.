@@ -21,7 +21,7 @@ const Header = () => {
       <button onClick={() => {setToggle(!toggle)}} className='relative'>
         <Image 
           alt="logo"
-          src="/jr.svg"
+          src="/images/JrNet.svg"
           height={100}
           width={100}
           className={`z-10 transition-opacity scale-150 duration-500 absolute inset-0 ${toggle ? 'opacity-0' : 'opacity-100'}`}
@@ -29,7 +29,7 @@ const Header = () => {
         />
         <Image 
           alt="logo"
-          src="/um.svg"
+          src="/images/um.svg"
           height={100}
           width={100}
           className={`z-10 transition-opacity scale-150 duration-500 ${toggle ? 'opacity-100' : 'opacity-0'}`}

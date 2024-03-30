@@ -1,11 +1,13 @@
+import { Linden_Hill } from 'next/font/google'
 import Image from 'next/image'
+import Link from 'next/link'
 import React from 'react'
 
 const FooterLinks = [
-  {label: 'Visit our Github page', name: 'Github', href: 'https://github.com/Jagadesh-Ronanki/'},
-  {label: 'Visit our Blog', name: 'Blog', href: '/blog'},
-  {label: 'Visit our LinkedIn page', name: 'Linkedin', href: 'https://www.linkedin.com/in/jagadesh-ronanki/'},
-  {label: 'Visit our X page', name: 'X', href: 'https://twitter.com/JrNet_'}
+  {label: 'Github', name: 'Github', href: 'https://github.com/Jagadesh-Ronanki/'},
+  {label: 'Blog', name: 'Blog', href: '/blog'},
+  {label: 'LinkedIn', name: 'Linkedin', href: 'https://www.linkedin.com/in/jagadesh-ronanki/'},
+  {label: 'X', name: 'X', href: 'https://twitter.com/JrNet_'}
 ]
 
 const Footer = () => {
@@ -14,23 +16,38 @@ const Footer = () => {
       <section className='flex flex-row justify-between pb-36 md:pb-8 '>
         <Image 
           alt="logo"
-          src="/jr.svg"
+          src="/images/JrNet.svg"
           height={100}
           width={100}
+          className='scale-150 -z-10 -translate-y-14'
           draggable={false}
         />
         <div className="grid grid-row gap-4 text-stone-400 text-end">
-          <a rel="noreferrer" aria-label="Visit our X page" href="https://github.com/threesigmaxyz" className="font-light" target="_blank">Github</a>
-          <a rel="noreferrer" aria-label="Visit our LinkedIn page" href="https://www.linkedin.com/company/threesigmaxyz/" className="font-light" target="_blank">Blog</a>
-          <a rel="noreferrer" aria-label="Visit our LinkedIn page" href="https://www.linkedin.com/company/threesigmaxyz/" className="font-light" target="_blank">LinkedIn</a>
-          <a rel="noreferrer" aria-label="Visit our X page" href="https://twitter.com/threesigmaxyz" className="font-light" target="_blank">X</a>
+          {FooterLinks.map((link, index) => (
+            <Link 
+              key={index}
+              rel="noreferrer"
+              aria-label={`Visit my ${link.name} page`}
+              href={link.href}
+              className="font-light hover:text-white/90 transition-colors ease-in-out"
+              target={link.href == "/blog" ? "" : "_blank"}
+            >
+              {link.label}
+            </Link>
+          ))}
         </div>
       </section>
       <span className="font-light text-stone-400">
         © 2024 JrNet - portfolio / All rights reserved /&nbsp;
-        <a rel="noreferrer" aria-label="Go to the privacy policy page" className="font-light" target="_blank" href="/privacy-policy">
+        <Link 
+          rel="noreferrer"
+          aria-label="Go to the privacy policy page"
+          className="font-light hover:text-white/90 transition-colors ease-in-out"
+          target="_blank"
+          href="/privacy-policy"
+        >
           Privacy Policy
-        </a>
+        </Link>
       </span>
     </footer>
   )

@@ -5,7 +5,22 @@ import { compareDesc } from "date-fns"
 import { formatDate } from "@/lib/utils"
 
 export const metadata = {
-  title: "Blog"
+  title: "Blog",
+  description: "Web3 Auditor Notes",
+  openGraph: {
+    images: [
+      {
+        url: '/og-blog.png',
+        width: 800,
+        height: 600,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: '/og-blog.png',
+    creator: "@JrNet_",
+  },
 }
 
 const page = () => {
@@ -28,20 +43,8 @@ const page = () => {
             </div>
           </div>
         ) : (
-          <p>No Posts published</p>
+          <p className="h-[70vh] flex flex-col justify-center font-light tracking-widest md:text-xl text-center">No Posts published</p>
         )}
-        {/* <div className="grid">
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))]">
-            <BlogCard />
-            <BlogCard />
-            <BlogCard />
-            <BlogCard />
-            <BlogCard />
-            <BlogCard />
-            <BlogCard />
-            <BlogCard />
-          </div>
-        </div> */}
       </section>
     </div>
   );

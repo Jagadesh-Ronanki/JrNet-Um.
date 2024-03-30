@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Metadata } from "next"
 import { absoluteUrl, cn, formatDate } from "../../../../lib/utils";
 import Toc from "@/components/toc";
 
@@ -85,40 +84,6 @@ const page = async ({params}) => {
       <div className="group gap-4 md:text-lg xl:grid xl:grid-cols-[1fr_48rem_1fr]">
         <aside className="mt-2 pb-12 max-w-[235px] left-[3rem] sticky top-20 mb-24 h-fit max-h-screen overflow-y-hidden hover:overflow-y-auto max-xl:hidden text-white/45 hover:text-white/70 transition-color ease-in-out font-light text-md">
           <Toc />
-          {/* <nav>
-            <ol className="space-y-2 font-sans">
-              <Toc />
-              <li className=" break-words ml-3 text-[0.9rem] leading-tight hover:font-normal hover:text-white transition-colors duration-300">
-                <a href="#what-is-transient-storage-eip-1153-7784637fb90d">
-                  What is Transient Storage (EIP-1153)?
-                </a>
-              </li>
-              <li className="break-words ml-3 text-[0.9rem] leading-tight hover:text-white transition-colors duration-300">
-                <a href="#why-do-we-need-eip-1153-8581a655ad89">
-                  Why do we need EIP-1153?
-                </a>
-              </li>
-              <li className="break-words ml-3 text-[0.9rem] leading-tight hover:text-white transition-colors duration-300">
-                <a href="#use-cases-4855dffb44e1">Use Cases</a>
-              </li>
-              <li className="break-words ml-3 text-[0.9rem] leading-tight hover:text-white transition-colors duration-300">
-                <a href="#key-security-considerations-benefits-and-drawbacks-of-eip-1153-5541830cca67">
-                  Key Security Considerations, Benefits, and Drawbacks of
-                  EIP-1153
-                </a>
-              </li>
-              <li className="break-words ml-3 text-[0.9rem] leading-tight hover:text-white transition-colors duration-300">
-                <a href="#latest-news-about-transient-storage-0335c6e5c2e6">
-                  Latest News about Transient Storage
-                </a>
-              </li>
-              <li className="break-words ml-3 text-[0.9rem] leading-tight hover:text-white transition-colors duration-100">
-                <a href="#conclusion-and-outlook-b496d2f6a718">
-                  Conclusion and Outlook
-                </a>
-              </li>
-            </ol>
-          </nav> */}
         </aside>
         <div className="js-toc-content p-8 xl:p-12 xl:border-l-[0.1px] xl:border-r-[0.1px] border-stone-700 mx-auto max-w-[75ch] font-light text-left">
           <Mdx code={post.body.code} />
