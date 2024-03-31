@@ -32,10 +32,12 @@ const PastWork = () => {
                   />
                   <span className="font-mono text-[16px]">{audit.title}</span>
                 </div>
-                <Button className="rounded-full border-[0.4px] text-white border-stone-700 bg-black hover:bg-neutral-900/40 max-md:w-full max-md:mt-2 font-extralight tracking-wider" variant="secondary">
-                  <Link href={audit.slug}>Read Report</Link>
-                  <ArrowUpRight className="pl-2 opacity-90" />
-                </Button>
+                <Link href={audit.slug}>
+                  <Button  className="rounded-full border-[0.4px] text-white border-stone-700 bg-black hover:bg-neutral-900/40 max-md:w-full max-md:mt-2 font-extralight tracking-wider" variant="secondary">
+                    Read Report
+                    <ArrowUpRight className="pl-2 opacity-90" />
+                  </Button>
+                </Link>
               </div>
             ))}
           </div>
