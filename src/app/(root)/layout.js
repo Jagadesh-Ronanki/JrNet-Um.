@@ -33,7 +33,7 @@ export const metadata = {
   authors: [
     {
       name: "JrNet",
-      url: "http://localhost:3000",
+      url: "https://umspaces.vercel.com/",
     },
   ],
   creator: "Jagadesh Ronanki",
