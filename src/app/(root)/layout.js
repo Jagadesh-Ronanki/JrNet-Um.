@@ -50,12 +50,12 @@ export const metadata = {
     siteName: siteConfig.name,
     images: [
       {
-        url: '/og.png',
+        url: 'https://umspaces.vercel.com/og.png',
         width: 800,
         height: 600,
       },
       {
-        url: '/og.png',
+        url: 'https://umspaces.vercel.com/og.png',
         width: 1800,
         height: 1600,
         alt: siteConfig.name,
@@ -66,7 +66,7 @@ export const metadata = {
     card: "summary_large_image",
     title: siteConfig.name,
     description: siteConfig.description,
-    images: [`${siteConfig.url}/og.png`],
+    images: 'https://umspaces.vercel.com/og.png',
     creator: "@JrNet_",
   },
   icons: {
