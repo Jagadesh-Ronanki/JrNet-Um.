@@ -1,6 +1,6 @@
+import { siteConfig } from "@/../config/site"
 import Footer from '@/components/global/footer'
 import Header from '@/components/global/header'
-import { siteConfig } from "@/../config/site"
 
 export const metadata = {
   title: {

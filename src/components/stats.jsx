@@ -1,6 +1,6 @@
 "use client"
-import React, { useState, useEffect } from "react";
 import { allAudits } from "contentlayer/generated";
+import { useEffect, useState } from "react";
 
 const Stats = () => {
   const [highsAndMeds, setHighsAndMeds] = useState(0);

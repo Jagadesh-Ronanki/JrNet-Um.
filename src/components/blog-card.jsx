@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { SlArrowRight } from "react-icons/sl";
 import { HiArrowSmallRight } from "react-icons/hi2";
 
 const BlogCard = ({ post }) => {

@@ -1,11 +1,10 @@
-import Image from "next/image";
-import Link from "next/link";
-import React from "react";
-import { Button } from "./ui/button";
-import Title from "./global/title";
-import { ArrowUpRight } from "lucide-react";
 import { allAudits } from "contentlayer/generated";
 import { compareDesc } from "date-fns";
+import { ArrowUpRight } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import Title from "./global/title";
+import { Button } from "./ui/button";
 
 const PastWork = () => {
   const audits = allAudits

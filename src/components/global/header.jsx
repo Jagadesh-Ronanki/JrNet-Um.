@@ -1,8 +1,8 @@
 "use client"
-import React, { useState } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
 import { useActivePath } from '@/lib/helper';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useState } from 'react';
 
 
 const navigation = [

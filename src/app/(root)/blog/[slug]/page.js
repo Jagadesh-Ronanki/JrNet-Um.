@@ -1,11 +1,9 @@
-import Image from "next/image";
-import Link from "next/link";
-import { absoluteUrl, cn, formatDate } from "../../../../lib/utils";
 import Toc from "@/components/toc";
+import { absoluteUrl } from "../../../../lib/utils";
 
-import { allAuthors, allPosts } from "contentlayer/generated"
-import { Mdx } from "@/components/mdx-components"
-import "@/../styles/mdx.css"
+import "@/../styles/mdx.css";
+import { Mdx } from "@/components/mdx-components";
+import { allPosts } from "contentlayer/generated";
 import { notFound } from "next/navigation";
 
 export async function generateMetadata({ params }) {

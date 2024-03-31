@@ -1,8 +1,7 @@
 import BlogCard from "@/components/blog-card";
 import Title from "@/components/global/title";
-import { allPosts } from "contentlayer/generated"
-import { compareDesc } from "date-fns"
-import { formatDate } from "@/lib/utils"
+import { allPosts } from "contentlayer/generated";
+import { compareDesc } from "date-fns";
 
 export const metadata = {
   title: "Blog",

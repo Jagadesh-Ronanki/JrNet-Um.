@@ -1,7 +1,7 @@
 "use client"
+import "@/../styles/tocbot.css";
 import { useEffect } from "react";
 import tocbot from "tocbot";
-import "@/../styles/tocbot.css"
 
 /* Source: https://webtech-note.com/posts/tocbot-contentlayer */
 export default function Toc() {

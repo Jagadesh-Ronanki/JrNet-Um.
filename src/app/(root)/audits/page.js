@@ -1,9 +1,6 @@
-import BlogCard from "@/components/blog-card";
-import Title from "@/components/global/title";
-import { allAudits } from "contentlayer/generated"
-import { compareDesc } from "date-fns"
-import { formatDate } from "@/lib/utils"
 import PastWork from "@/components/past-work";
+import { allAudits } from "contentlayer/generated";
+import { compareDesc } from "date-fns";
 
 export const metadata = {
   title: "Audits",

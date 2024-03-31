@@ -1,7 +1,5 @@
-import { Linden_Hill } from 'next/font/google'
 import Image from 'next/image'
 import Link from 'next/link'
-import React from 'react'
 
 const FooterLinks = [
   {label: 'Github', name: 'Github', href: 'https://github.com/Jagadesh-Ronanki/'},
