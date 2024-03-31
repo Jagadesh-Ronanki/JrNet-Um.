@@ -49,12 +49,12 @@ export const metadata = {
     siteName: siteConfig.name,
     images: [
       {
-        url: 'https://umspaces.vercel.com/og.png',
+        url: 'https://umspaces.vercel.app/og.png',
         width: 800,
         height: 600,
       },
       {
-        url: 'https://umspaces.vercel.com/og.png',
+        url: 'https://umspaces.vercel.app/og.png',
         width: 1800,
         height: 1600,
         alt: siteConfig.name,
