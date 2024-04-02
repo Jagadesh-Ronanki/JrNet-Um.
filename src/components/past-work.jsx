@@ -30,7 +30,7 @@ const PastWork = () => {
                     draggable="false"
                     className="object-contain object-left mr-10 inset-0 bg-transparent scale-[1.2]"
                   />
-                  <span className="font-mono text-[16px]">{audit.title}</span>
+                  <span className="font-mono text-[16px] text-right">{audit.title}</span>
                 </div>
                 <Link href={audit.slug} className="max-md:w-full max-md:mt-2">
                   <Button  className="rounded-full border-[0.4px] text-white border-stone-700 bg-black hover:bg-neutral-900/40 max-md:w-full max-md:mt-2 font-extralight tracking-wider" variant="secondary">
