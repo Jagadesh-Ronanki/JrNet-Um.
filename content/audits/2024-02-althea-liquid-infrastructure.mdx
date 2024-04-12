@@ -11,9 +11,103 @@ authors:
 
 
 The code under review can be found in [2024-02-althea-liquid-infrastructure](https://github.com/code-423n4/2024-02-althea-liquid-infrastructure).
+Find my analysis report here: Tagged as sufficient quality [report](https://github.com/code-423n4/2024-02-althea-liquid-infrastructure-findings/blob/main/data/JrNet-Analysis.md)
 
 ---
 
 github.com/code-423n4/2024-02-althea-liquid-infrastructure
 
-# M-01 ######################### (validated)
+# `distribute` can be paused by owner of the contract
+Function `distribute` is used to pay out rewards in LiquidInfrastructureERC20 contract. When distribution started users are prevented from performing transfers, mints, and burns i.e., no token holder is allowed to burn the tokens to claim their tokens / transfer their erc20 tokens to others. This implies that completion of distribution is crucial step.  
+
+But owner of the contract is allowed to change the `distributableERC20s` which is looped over to send the entitlement amt to recipient. If a owner managed to set a token which contract doesn't hold balance for it reverts and never completes. 
+
+Function `distribute` is used to pay out rewards in LiquidInfrastructureERC20 contract. When distribution started users are prevented from performing transfers, mints, and burns i.e., no token holder is allowed to burn the tokens to claim their tokens / transfer their erc20 tokens to others. This implies that completion of distribution is crucial step.  
+
+But owner of the contract is allowed to change the `distributableERC20s` which is looped over to send the entitlement amt to recipient. If a owner managed to set a token which contract doesn't hold balance for it reverts and never completes. 
+
+### Impact
+Reward distribution never completes results in halting all the functionalities of token holders resulting in financial loss.  
+
+### Proof of Concept
+
+1. A LiquidInfrastructureERC20 is deployed with tokens `distributableERC20s = [A,B,C]` and `MinDistributionPeriod = 500` 
+2. Users look at potential reward opportunity and mints the LiquidInfrastructure tokens.
+3. Owner invokes function `distribute(1)` (1 -> numDistributions).
+4. This locks the contract, calculates the entitlement and distributes the entitlement tokens to first holder.
+```solidity
+    function distribute(uint256 numDistributions) public nonReentrant {
+        require(numDistributions > 0, "must process at least 1 distribution");
+        if (!LockedForDistribution) {
+            require(
+                _isPastMinDistributionPeriod(),
+                "MinDistributionPeriod not met"
+            );
+            _beginDistribution(); //> locks the contract & entitlements calculated here
+        }
+  
+        uint256 limit = Math.min(
+            nextDistributionRecipient + numDistributions,
+            holders.length
+        );
+
+        uint i;
+        for (i = nextDistributionRecipient; i < limit; i++) {
+            address recipient = holders[i];
+            if (isApprovedHolder(recipient)) { //> is a holder who deposited and not being approved holder? - no
+                uint256[] memory receipts = new uint256[](
+                    distributableERC20s.length
+                );
+                for (uint j = 0; j < distributableERC20s.length; j++) {
+                    IERC20 toDistribute = IERC20(distributableERC20s[j]);
+                    uint256 entitlement = erc20EntitlementPerUnit[j] *
+                        this.balanceOf(recipient);                     //> entitlement of distributableERC20s * holding ERC20s by user
+                    if (toDistribute.transfer(recipient, entitlement)) { //> are before and after token transfer called? - I guess no!! those are implemented for this contract (ERC20)
+                        receipts[j] = entitlement;
+                    }
+                }
+
+                emit Distribution(recipient, distributableERC20s, receipts);
+            }
+        }
+        // ...
+    }
+```
+5. Passing the MinDistributionPeriod owner sets `distributableERC20s = [D,B,C]` (it is not protected).
+```solidity
+    function setDistributableERC20s(
+        address[] memory _distributableERC20s
+    ) public onlyOwner {
+        distributableERC20s = _distributableERC20s; //> @audit if changed during distribution?
+    }
+```
+6. When other users try to call distribute, the values in `erc20EntitlementPerUnit` are cached for tokens [A,B,C]
+7. The entitlement calculated for token D will be (0.5 (cached entitlement value of token A) * 10 (balanceof LiquidInfrastructure tokens ) = 5e17 suppose)
+```solidity
+for (uint j = 0; j < distributableERC20s.length; j++) {
+    IERC20 toDistribute = IERC20(distributableERC20s[j]);
+    //> entitlement = 0.5 (for token A) * 10 (balance of recipient) => 5
+    uint256 entitlement = erc20EntitlementPerUnit[j] * this.balanceOf(recipient);   
+    //> this reverts as the token balance of contract is 0 for token D
+    if (toDistribute.transfer(recipient, entitlement)) { 
+         receipts[j] = entitlement;
+    }
+}
+```
+8. This will lock the contract permanently.
+
+### Tools Used
+
+Manual Code review
+
+### Recommended Mitigation Steps
+
+Halt `setDistributableERC20s` during distribution
+```diff
+    function setDistributableERC20s(
+        address[] memory _distributableERC20s
+    ) public onlyOwner {
++       require(!LockedForDistribution, "cannot override distributable erc20 during distribution");
+        distributableERC20s = _distributableERC20s; //> @audit if changed during distribution?
+    }
+```
