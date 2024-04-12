@@ -16,7 +16,7 @@ Find my analysis report here: Tagged as sufficient quality [report](https://gith
 
 ---
 
-# [H-01] Function `distribute` can be paused by owner of the contract
+# [M-01] Function `distribute` can be paused by owner of the contract
 Function `distribute` is used to pay out rewards in LiquidInfrastructureERC20 contract. When distribution started users are prevented from performing transfers, mints, and burns i.e., no token holder is allowed to burn the tokens to claim their tokens / transfer their erc20 tokens to others. This implies that completion of distribution is crucial step.  
 
 But owner of the contract is allowed to change the `distributableERC20s` which is looped over to send the entitlement amt to recipient. If a owner managed to set a token which contract doesn't hold balance for it reverts and never completes. 
