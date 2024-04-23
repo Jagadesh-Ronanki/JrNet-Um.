@@ -38,7 +38,7 @@ const Header = () => {
           draggable={false}
         />
       </button>
-      <nav className={`max-md:hidden grid grid-cols-${numCols} divide-x-[0.1px] divide-stone-700 w-auto text-center h-full`}>
+      <nav className={`max-md:hidden grid grid-cols-4 divide-x-[0.1px] divide-stone-700 w-auto text-center h-full`}>
         {navigation.map((item, key) => (
           <Link href={item.href} key={item.name} className={`content-center px-12 ${checkActivePath(item.href) ? 'active' : 'text-stone-400'} ${key == 0 ? 'border-l-[0.1px] border-l-stone-700' : ''}`}>
               {item.name}
