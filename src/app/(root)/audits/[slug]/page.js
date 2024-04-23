@@ -78,7 +78,7 @@ const page = async ({params}) => {
         </span>
       </div>
       <div className="group gap-4 md:text-lg xl:grid xl:grid-cols-[1fr_48rem_1fr]">
-        <aside className="mt-2 pb-12 max-w-[235px] left-[3rem] sticky top-20 mb-24 h-fit max-h-screen overflow-y-hidden hover:overflow-y-auto max-xl:hidden text-white/45 hover:text-white/70 transition-color ease-in-out font-light text-md">
+        <aside className="mt-2 pb-12 max-w-[210px] left-[3rem] sticky top-20 mb-24 h-fit max-h-screen overflow-y-hidden hover:overflow-y-auto max-xl:hidden text-white/45 hover:text-white/70 transition-color ease-in-out font-light text-md">
           <Toc />
         </aside>
         <div className="js-toc-content p-8 xl:p-12 xl:border-l-[0.1px] xl:border-r-[0.1px] border-stone-700 mx-auto max-w-[75ch] font-light text-left">

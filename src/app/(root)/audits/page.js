@@ -31,11 +31,11 @@ const page = () => {
   return (
     <div>
       {/* <Title title={"Audits"} className={'sticky md:top-[79px] md:z-10 top-[78px] z-[2]'} /> */}
-      <section className="h-[70vh]">
+      <section className="">
         {audits.length ? (
-          <PastWork />
+          <PastWork isPage={true}/>
         ) : (
-          <p className="h-[70vh] flex flex-col justify-center font-light tracking-widest md:text-xl text-center">No Posts published</p>
+          <p className="h-[70vh] flex flex-col justify-center font-light tracking-widest md:text-xl text-center">No Audits published</p>
         )}
       </section>
     </div>

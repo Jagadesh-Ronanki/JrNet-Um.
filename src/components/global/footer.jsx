@@ -10,7 +10,7 @@ const FooterLinks = [
 
 const Footer = () => {
   return (
-    <footer className='p-[30px] md:p-12 border-t-[0.1px] border-t-stone-700 '>
+    <footer className='p-[30px] md:p-12 border-t-[0.1px] border-t-stone-700 z-10'>
       <section className='flex flex-row justify-between pb-36 md:pb-8 '>
         <Image 
           alt="logo"

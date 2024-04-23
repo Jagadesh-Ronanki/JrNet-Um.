@@ -7,6 +7,7 @@ import { useState } from 'react';
 
 const navigation = [
   { name: 'Home', href: '/', current: true },
+  { name: 'Audits', href: '/audits', current: true },
   { name: 'Blog', href: '/blog', current: false },
   { name: 'Contacts', href: '/contacts', current: false },
 ];
@@ -15,6 +16,7 @@ const Header = () => {
   const [isOpen, setIsOpen] = useState(false)
   const [toggle, setToggle] = useState(false)
   const checkActivePath = useActivePath()
+  const numCols = navigation.length;
 
   return (
     <section className='sticky top-0 z-10 bg-black h-[79px] flex flex-row justify-between items-center pl-5 border-b-[0.1px] border-b-stone-700'>
@@ -36,7 +38,7 @@ const Header = () => {
           draggable={false}
         />
       </button>
-      <nav className="max-md:hidden grid grid-cols-3 divide-x-[0.1px] divide-stone-700 w-auto text-center h-full">
+      <nav className={`max-md:hidden grid grid-cols-${numCols} divide-x-[0.1px] divide-stone-700 w-auto text-center h-full`}>
         {navigation.map((item, key) => (
           <Link href={item.href} key={item.name} className={`content-center px-12 ${checkActivePath(item.href) ? 'active' : 'text-stone-400'} ${key == 0 ? 'border-l-[0.1px] border-l-stone-700' : ''}`}>
               {item.name}
